@@ -1,8 +1,5 @@
 Clout = {}
 
--- Table to store player loaded callbacks
-Clout.PlayerLoadedCallbacks = {}
-
 -- Detect framework
 function Clout.GetFramework()
     if GetResourceState(Config.Frameworks.qb) == 'started' then
@@ -14,23 +11,22 @@ function Clout.GetFramework()
     elseif GetResourceState(Config.Frameworks.qbox) == 'started' then
         return 'qbox', exports['qbx_core']:GetCoreObject()
     elseif GetResourceState(Config.Frameworks.vrp) == 'started' then
-        return 'vrp', nil -- vRP doesn't use exports typically
+        return 'vrp', nil
     end
     return 'unknown', nil
 end
 
--- Initialize framework
 local framework, frameworkObj = Clout.GetFramework()
 if Config.Debug then
     print('[Clout] Detected framework: ' .. framework)
 end
 
--- Register a callback for when the player loads
+-- Existing player loaded callbacks
+Clout.PlayerLoadedCallbacks = {}
 function Clout.OnPlayerLoaded(callback)
     table.insert(Clout.PlayerLoadedCallbacks, callback)
 end
 
--- Trigger all registered callbacks
 local function triggerPlayerLoadedCallbacks()
     local playerData = Clout.GetPlayerData()
     for _, callback in ipairs(Clout.PlayerLoadedCallbacks) do
@@ -38,7 +34,6 @@ local function triggerPlayerLoadedCallbacks()
     end
 end
 
--- Framework-specific player loaded events
 if framework == 'qb' then
     RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
         triggerPlayerLoadedCallbacks()
@@ -48,10 +43,9 @@ elseif framework == 'esx' then
         triggerPlayerLoadedCallbacks()
     end)
 elseif framework == 'ox' then
-    -- OX Core doesn't have a direct equivalent; use a custom check or event if provided
     Citizen.CreateThread(function()
         while true do
-            if frameworkObj and Clout.GetPlayerData() then -- Check if player data is available
+            if frameworkObj and Clout.GetPlayerData() then
                 triggerPlayerLoadedCallbacks()
                 break
             end
@@ -63,7 +57,6 @@ elseif framework == 'qbox' then
         triggerPlayerLoadedCallbacks()
     end)
 elseif framework == 'vrp' then
-    -- vRP typically doesn't have a direct client-side event; use a custom approach
     Citizen.CreateThread(function()
         while true do
             if vRP and vRP.getUserId and Clout.GetPlayerData() then
@@ -75,24 +68,22 @@ elseif framework == 'vrp' then
     end)
 end
 
--- Get player data
 function Clout.GetPlayerData()
     if framework == 'qb' then
         return frameworkObj.Functions.GetPlayerData()
     elseif framework == 'esx' then
         return frameworkObj.GetPlayerData()
     elseif framework == 'ox' then
-        return frameworkObj -- Placeholder; adjust based on OX Core API
+        return frameworkObj
     elseif framework == 'qbox' then
         return frameworkObj.Functions.GetPlayerData()
     elseif framework == 'vrp' then
         local user_id = vRP.getUserId()
-        return user_id and { id = user_id } or nil -- Basic vRP data
+        return user_id and { id = user_id } or nil
     end
     return nil
 end
 
--- Send notification
 function Clout.Notify(message, type, duration)
     type = type or 'info'
     duration = duration or Config.Notify.duration
@@ -109,3 +100,27 @@ function Clout.Notify(message, type, duration)
     end
 end
 
+-- New function: Execute a command
+function Clout.ExecuteCommand(command)
+    if framework == 'qb' or framework == 'qbox' then
+        ExecuteCommand(command)
+    elseif framework == 'esx' then
+        ExecuteCommand(command)
+    elseif framework == 'ox' then
+        ExecuteCommand(command)
+    elseif framework == 'vrp' then
+        -- vRP might require a different approach for commands
+        if vRP then
+            vRP.executeCommand(command)
+        else
+            ExecuteCommand(command)
+        end
+    else
+        ExecuteCommand(command)
+    end
+end
+
+-- Export the functions
+exports('Notify', Clout.Notify)
+exports('GetPlayerData', Clout.GetPlayerData)
+exports('OnPlayerLoaded', Clout.OnPlayerLoaded)
